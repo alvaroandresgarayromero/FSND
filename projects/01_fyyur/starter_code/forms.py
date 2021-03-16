@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_wtf import Form
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField
-from wtforms.validators import DataRequired, AnyOf, URL
+from wtforms.validators import DataRequired, InputRequired, AnyOf, URL
 
 class ShowForm(Form):
     artist_id = StringField(
@@ -85,8 +85,25 @@ class VenueForm(Form):
     phone = StringField(
         'phone'
     )
+
+    seeking_talent = SelectField(
+        'seeking_talent',
+        choices=[
+            ('True', 'Yes'),
+            ('False', 'No')
+        ]
+    )
+
+    seeking_description = StringField(
+        'seeking_description'
+    )
+
     image_link = StringField(
-        'image_link'
+        'image_link', validators=[URL()]
+    )
+
+    website = StringField(
+        'website', validators=[URL()]
     )
     genres = SelectMultipleField(
         # TODO implement enum restriction
@@ -110,6 +127,7 @@ class VenueForm(Form):
             ('Reggae', 'Reggae'),
             ('Rock n Roll', 'Rock n Roll'),
             ('Soul', 'Soul'),
+            ('Swing', 'Swing'),
             ('Other', 'Other'),
         ]
     )
@@ -209,6 +227,7 @@ class ArtistForm(Form):
             ('Reggae', 'Reggae'),
             ('Rock n Roll', 'Rock n Roll'),
             ('Soul', 'Soul'),
+            ('Swing', 'Swing'),
             ('Other', 'Other'),
         ]
     )
@@ -216,5 +235,27 @@ class ArtistForm(Form):
         # TODO implement enum restriction
         'facebook_link', validators=[URL()]
     )
+
+    seeking_venue = SelectField(
+        'seeking_venue',
+        choices=[
+            ('True', 'Yes'),
+            ('False', 'No')
+        ]
+    )
+
+    seeking_description = StringField(
+        'seeking_description'
+    )
+
+    image_link = StringField(
+        'image_link', validators=[URL()]
+    )
+
+    website = StringField(
+        'website', validators=[URL()]
+    )
+
+
 
 # TODO IMPLEMENT NEW ARTIST FORM AND NEW SHOW FORM

@@ -5,7 +5,12 @@
 	<div class="col-sm-6">
 		<h1 class="monospace">
 			{{ venue.name }}
+			<a class="btn" href="/venues/{{ venue.id }}/edit">
+				<i class="fas fa-pencil-alt" style="font-size:24px"></i> Edit</a>
+
+			<button class="delete-button" data-id="{{ venue.id }}"> Delete</button>
 		</h1>
+
 		<p class="subtitle">
 			ID: {{ venue.id }}
 		</p>
@@ -74,6 +79,32 @@
 		{% endfor %}
 	</div>
 </section>
+
+<script>
+	const delete_venues = document.querySelectorAll('.delete-button');
+	for( let i=0; i < delete_venues.length; i++) {
+		const checkbox = delete_venues[i];
+		checkbox.onclick = function(e) {
+							console.log('event', e);
+							const venueId = e.target.dataset['id'];
+							fetch('/venues/' + venueId, {
+									  method: 'DELETE'
+								 })
+								 .then(response => response.json())
+								 .then(data => {
+									console.log(data['success'])
+                                    window.location.reload(true);
+
+
+ 								 })
+								 .catch(function() {
+									console.log('error catch function() delete venue')
+ 								 });
+						}
+	}
+
+
+</script>
 
 {% endblock %}
 
