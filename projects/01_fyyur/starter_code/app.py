@@ -55,12 +55,6 @@ class Venue(db.Model):
 
     shows = db.relationship('Show_Table', backref='venues', lazy='select')
 
-    def __repr__(self):
-        return "< [{}] id: {}, genres: {} >".format(
-            self.__tablename__,
-            self.id,
-            self.genres)
-
 
 # parent
 class Artist(db.Model):
@@ -120,61 +114,64 @@ def index():
 
 @app.route('/venues')
 def venues():
-    venues_list_of_tuple = Venue.query.with_entities(Venue.city, Venue).group_by(Venue.city, Venue).all()
-    location_lst = Venue.query.with_entities(Venue.city, Venue.state).group_by(Venue.city, Venue.state).all()
+    cities = [r.city for r in db.session.query(Venue.city).distinct()]
 
     data = []
-    for (city, state) in location_lst:
-        element = {
-            'city': city,
-            'state': state,
-            'venues': []}
-        data.append(element)
+    aggregated_sum = 0
+    for city_name in cities:
 
-    total_upcoming_shows = 0
-    for (city, venue) in venues_list_of_tuple:
-        data_ptr = [element for element in data if element['city'] == city]
+        query = db.session.query(Venue, db.func.count('num_upcoming_shows')) \
+            .outerjoin(Show_Table) \
+            .filter(Venue.city == city_name) \
+            .group_by(Venue.id) \
+            .having(db.func.count('num_upcoming_shows') > 0)
+        venues = [venue for (venue, numShows) in query.all()]
 
-        num_upcoming_shows = len(Show_Table.query
-                                 .filter(Show_Table.venue_id == venue.id)
+        upcomingShows_LUT = dict(query
                                  .filter(Show_Table.start_time >= datetime.today())
                                  .all())
 
-        total_upcoming_shows = total_upcoming_shows + num_upcoming_shows
+        venue_lst = []
+        for venue in venues:
+            aggregated_sum = aggregated_sum + upcomingShows_LUT.get(venue, 0)
+            venue_info = {"id": venue.id,
+                          "name": venue.name,
+                          "num_upcoming_shows": aggregated_sum}
+            venue_lst.append(venue_info)
 
-        new_venue_info = {
-            "id": venue.id,
-            "name": venue.name,
-            "num_upcoming_shows": total_upcoming_shows}
+        city_info = {
+            'city': city_name,
+            'state': venue.state,
+            'venues': venue_lst}
 
-        data_ptr[0]['venues'].append(new_venue_info)
-
+        data.append(city_info)
     return render_template('pages/venues.html', areas=data)
 
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
     search_term = request.form.get('search_term', '')
+    search_term = "%{}%".format(search_term)
 
-    venue_list = Venue.query.all()
+    query = db.session.query(Venue, db.func.count('num_upcoming_shows')) \
+        .outerjoin(Show_Table) \
+        .filter(Venue.name.ilike(search_term)) \
+        .group_by(Venue.id) \
+        .having(db.func.count('num_upcoming_shows') > 0)
 
-    venue_result_lst = [element for element in venue_list if search_term.upper() in element.name.upper()]
+    response = {'count': query.count()}
 
-    response = {'count': len(venue_result_lst)}
+    venues = [venue for (venue, numShows) in query.all()]
 
+    upcomingShows_LUT = dict(query
+                             .filter(Show_Table.start_time >= datetime.today())
+                             .all())
     data = []
-    for venue in venue_result_lst:
-        upcoming_shows_lst = Show_Table.query \
-            .filter(Show_Table.venue_id == venue.id) \
-            .filter(Show_Table.start_time >= datetime.today()) \
-            .all()
-
-        element = {
-            "id": venue.id,
-            "name": venue.name,
-            "num_upcoming_shows": len(upcoming_shows_lst),
-        }
-        data.append(element)
+    for venue in venues:
+        venue_info = {"id": venue.id,
+                      "name": venue.name,
+                      "num_upcoming_shows": upcomingShows_LUT.get(venue, 0)}
+        data.append(venue_info)
 
     response['data'] = data
     return render_template('pages/search_venues.html', results=response,
@@ -183,38 +180,24 @@ def search_venues():
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
-    venue = Venue.query.get(venue_id)
-    db.session.close()
+    query_venue = db.session.query(Venue)\
+                   .filter(Venue.id == venue_id)
 
-    if venue is None:
-        return redirect(url_for('venues'))
+    if not query_venue.all():
+        return render_template('errors/404.html')
     else:
-        data = venue.__dict__
 
-        show_list_past = Show_Table.query \
-            .filter(Show_Table.venue_id == venue_id) \
-            .filter(Show_Table.start_time < datetime.today()) \
-            .all()
+        data = query_venue.all()[0].__dict__
 
-        show_list_upcoming = Show_Table.query \
-            .filter(Show_Table.venue_id == venue_id) \
-            .filter(Show_Table.start_time >= datetime.today()) \
-            .all()
+        query = db.session.query(Show_Table) \
+            .outerjoin(Venue) \
+            .filter(Show_Table.venue_id == venue_id)
+
+        upcoming_shows_query = query \
+            .filter(Show_Table.start_time >= datetime.today())
 
         result = []
-        for show in show_list_past:
-            element = {
-                "artist_id": show.artists.id,
-                "artist_name": show.artists.name,
-                "artist_image_link": show.artists.image_link,
-                "start_time": str(show.start_time)}
-            result.append(element)
-
-        data["past_shows"] = result
-        data["past_shows_count"] = len(result)
-
-        result = []
-        for show in show_list_upcoming:
+        for show in upcoming_shows_query.all():
             element = {
                 "artist_id": show.artists.id,
                 "artist_name": show.artists.name,
@@ -223,8 +206,22 @@ def show_venue(venue_id):
             result.append(element)
 
         data["upcoming_shows"] = result
-        data["upcoming_shows_count"] = len(result)
+        data["upcoming_shows_count"] = upcoming_shows_query.count()
 
+        past_shows_query = query \
+            .filter(Show_Table.start_time < datetime.today())
+
+        result = []
+        for show in past_shows_query.all():
+            element = {
+                "artist_id": show.artists.id,
+                "artist_name": show.artists.name,
+                "artist_image_link": show.artists.image_link,
+                "start_time": str(show.start_time)}
+            result.append(element)
+
+        data["past_shows"] = result
+        data["past_shows_count"] = past_shows_query.count()
         return render_template('pages/show_venue.html', venue=data)
 
 
@@ -291,10 +288,8 @@ def delete_venue(venue_id):
 #  ----------------------------------------------------------------
 @app.route('/artists')
 def artists():
-    artist_lst_of_tuple = list(Artist.query.with_entities(Artist.id, Artist.name))
-
     data = []
-    for (record_id, name) in artist_lst_of_tuple:
+    for (record_id, name) in db.session.query(Artist.id, Artist.name):
         element = {'id': record_id,
                    'name': name}
 
@@ -305,27 +300,29 @@ def artists():
 
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
+
     search_term = request.form.get('search_term', '')
+    search_term = "%{}%".format(search_term)
 
-    artist_list = Artist.query.all()
+    query = db.session.query(Artist, db.func.count('num_upcoming_shows')) \
+        .outerjoin(Show_Table) \
+        .filter(Artist.name.ilike(search_term)) \
+        .group_by(Artist.id) \
+        .having(db.func.count('num_upcoming_shows') > 0)
 
-    artist_result_lst = [element for element in artist_list if search_term.upper() in element.name.upper()]
+    response = {'count': query.count()}
 
-    response = {'count': len(artist_result_lst)}
+    artists = [artist for (artist, numShows) in query.all()]
 
+    upcomingShows_LUT = dict(query
+                             .filter(Show_Table.start_time >= datetime.today())
+                             .all())
     data = []
-    for artist in artist_result_lst:
-        upcoming_shows_lst = Show_Table.query \
-            .filter(Show_Table.artist_id == artist.id) \
-            .filter(Show_Table.start_time >= datetime.today()) \
-            .all()
-
-        element = {
-            "id": artist.id,
-            "name": artist.name,
-            "num_upcoming_shows": len(upcoming_shows_lst),
-        }
-        data.append(element)
+    for artist in artists:
+        artist_info = {"id": artist.id,
+                       "name": artist.name,
+                       "num_upcoming_shows": upcomingShows_LUT.get(artist, 0)}
+        data.append(artist_info)
 
     response['data'] = data
 
@@ -335,38 +332,23 @@ def search_artists():
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-    artist = Artist.query.get(artist_id)
-    db.session.close()
+    query_artist = db.session.query(Artist) \
+        .filter(Artist.id == artist_id)
 
-    if artist is None:
-        return redirect(url_for('artists'))
+    if not query_artist.all():
+        return render_template('errors/404.html')
     else:
-        data = artist.__dict__
+        data = query_artist.all()[0].__dict__
 
-        show_list_past = Show_Table.query \
-            .filter(Show_Table.artist_id == artist_id) \
-            .filter(Show_Table.start_time < datetime.today()) \
-            .all()
+        query = db.session.query(Show_Table) \
+            .outerjoin(Artist) \
+            .filter(Show_Table.artist_id == artist_id)
 
-        show_list_upcoming = Show_Table.query \
-            .filter(Show_Table.artist_id == artist_id) \
-            .filter(Show_Table.start_time >= datetime.today()) \
-            .all()
+        upcoming_shows_query = query \
+            .filter(Show_Table.start_time >= datetime.today())
 
         result = []
-        for show in show_list_past:
-            element = {
-                "venue_id": show.venues.id,
-                "venue_name": show.venues.name,
-                "venue_image_link": show.venues.image_link,
-                "start_time": str(show.start_time)}
-            result.append(element)
-
-        data["past_shows"] = result
-        data["past_shows_count"] = len(result)
-
-        result = []
-        for show in show_list_upcoming:
+        for show in upcoming_shows_query.all():
             element = {
                 "venue_id": show.venues.id,
                 "venue_name": show.venues.name,
@@ -375,7 +357,22 @@ def show_artist(artist_id):
             result.append(element)
 
         data["upcoming_shows"] = result
-        data["upcoming_shows_count"] = len(result)
+        data["upcoming_shows_count"] = upcoming_shows_query.count()
+
+        past_shows_query = query \
+            .filter(Show_Table.start_time < datetime.today())
+
+        result = []
+        for show in past_shows_query.all():
+            element = {
+                "venue_id": show.venues.id,
+                "venue_name": show.venues.name,
+                "venue_image_link": show.venues.image_link,
+                "start_time": str(show.start_time)}
+            result.append(element)
+
+        data["past_shows"] = result
+        data["past_shows_count"] = past_shows_query.count()
 
         return render_template('pages/show_artist.html', artist=data)
 
