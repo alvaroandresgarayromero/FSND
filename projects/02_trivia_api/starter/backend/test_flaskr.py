@@ -33,7 +33,8 @@ class TriviaTestCase(unittest.TestCase):
 
     """
     TODO
-    Write at least one test for each test for successful operation and for expected errors.
+    Write at least one test for each test 
+    for successful operation and for expected errors.
     """
     def STP_01(self):
 
@@ -57,7 +58,8 @@ class TriviaTestCase(unittest.TestCase):
                 result_ids.append(question['id'])
 
 
-        # Verify pagination scroll does not repeat same questions in other pages
+        # Verify pagination scroll does
+        # not repeat same questions in other pages
         self.assertEqual(len(set(result_ids)), len(result_ids),
                          'The question ids queried are not unique, and have'
                          'been repeated in more than one page')
@@ -160,7 +162,8 @@ class TriviaTestCase(unittest.TestCase):
     def STP_07(self):
 
         # test delete of existing question record
-        question_before = Question.query.order_by(Question.id.desc()).first()
+        question_before = Question.query.\
+            order_by(Question.id.desc()).first()
 
         # test delete of question
         query = '/questions/{}'.format(question_before.id)
@@ -191,7 +194,8 @@ class TriviaTestCase(unittest.TestCase):
         questions_per_page = 10
 
         category_id = 2
-        query = '/categories/{}/questions'.format(category_id)
+        query = '/categories/{}/questions'.\
+            format(category_id)
 
         server_response = self.client().get(query)
         data = server_response.get_json()
@@ -217,7 +221,8 @@ class TriviaTestCase(unittest.TestCase):
         page = 10000
         category_id_base_0 = 1
 
-        query = '/categories/{}/questions?page={}'.format(category_id_base_0, page)
+        query = '/categories/{}/questions?page={}'.\
+            format(category_id_base_0, page)
         server_response = self.client().get(query)
         data = server_response.get_json()
 
@@ -231,7 +236,8 @@ class TriviaTestCase(unittest.TestCase):
         page = 1
         category_id_base_0 = 1000
 
-        query = '/categories/{}/questions?page={}'.format(category_id_base_0, page)
+        query = '/categories/{}/questions?page={}'.\
+            format(category_id_base_0, page)
         server_response = self.client().get(query)
         data = server_response.get_json()
 
@@ -243,7 +249,8 @@ class TriviaTestCase(unittest.TestCase):
 
         # test  '/categories/{}/questions interface
         category_id_base_0 = 1
-        query = '/categories/{}/questions'.format(category_id_base_0)
+        query = '/categories/{}/questions'.\
+            format(category_id_base_0)
 
         server_response = self.client().get(query)
         data = server_response.get_json()
@@ -287,7 +294,8 @@ class TriviaTestCase(unittest.TestCase):
         server_response = self.client().post(query, json=body)
         data = server_response.get_json()
 
-        # Verify that the questions queried meet the pagination criteria
+        # Verify that the questions queried
+        # meet the pagination criteria
         # of 10 or less per page
         self.assertLessEqual(len(data['questions']), questions_per_page,
                              'Number of questions queried did not '
@@ -297,7 +305,8 @@ class TriviaTestCase(unittest.TestCase):
         for question in data['questions']:
             result_ids.append(question['id'])
 
-        # Verify pagination does not repeat same questions in other pages
+        # Verify pagination does not repeat
+        # same questions in other pages
         self.assertEqual(len(set(result_ids)), len(result_ids),
                          'The question ids queried are not unique, and have'
                          'been repeated in more than one page')
@@ -314,11 +323,13 @@ class TriviaTestCase(unittest.TestCase):
 
         # Verify number of search
         self.assertEqual(len(data['questions']), 2,
-                         'the expected search result data does not match expected value')
+                         'the expected search result '
+                         'data does not match expected value')
 
     def STP_15(self):
 
-        # questions per search: Test assert triggers for no questions found
+        # questions per search:
+        # Test assert triggers for no questions found
         questions_per_page = 10
 
         category_id_base_0 = 1
@@ -366,7 +377,8 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(type(question['question']), str)
 
     def STP_17(self):
-        # test '/quizzes' trivia are grouped by category and are randomness
+        # test '/quizzes' trivia are
+        # grouped by category and are randomness
         query = '/quizzes'
 
         # All Categories
@@ -405,7 +417,8 @@ class TriviaTestCase(unittest.TestCase):
                                             with_entities(Question.category).\
                                             all()
                 self.assertGreater(len(set(selection)), 1,
-                                   'All categories requests should have more than one category')
+                                   'All categories requests '
+                                   'should have more than one category')
 
             else:
                 if fieldname == body_1_category:
@@ -430,13 +443,15 @@ class TriviaTestCase(unittest.TestCase):
 
         # Verify randomness by checking questions ids
 
-        # create a second result to simulate a second play session of randomness
+        # create a second result to simulate
+        # a second play session of randomness
         results2 = {body_1_category: [],
                     body_2_category: []}
 
         for x in range(1,10):
             for body in bodies:
-                server_response = self.client().post(query, json=body)
+                server_response = self.\
+                    client().post(query, json=body)
                 data = server_response.get_json()
 
                 results2[body['quiz_category']['type']].\
@@ -461,7 +476,8 @@ class TriviaTestCase(unittest.TestCase):
         # Exhaust all trivia questions queries
         result = []
         while True:
-            server_response = self.client().post(query, json=body)
+            server_response = self.client().\
+                post(query, json=body)
             data = server_response.get_json()
 
             if data['question'] is None:
@@ -503,7 +519,8 @@ class TriviaTestCase(unittest.TestCase):
                                   'id': 0}}
 
 
-        server_response = self.client().post(query, json=body)
+        server_response = self.client().\
+            post(query, json=body)
         data = server_response.get_json()
 
         # verify category + question package interface

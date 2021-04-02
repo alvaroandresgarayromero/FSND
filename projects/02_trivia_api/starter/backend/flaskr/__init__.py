@@ -14,7 +14,6 @@ MIN_PAGE = 1
 
 '''
   Saturates value to be within bounds
-  
   INPUT:
     value [int]: requested value
     min_value [int]: min bound value
@@ -22,8 +21,11 @@ MIN_PAGE = 1
   OUTPUT
     value [int]: bounded between min_value <= value <= max_value
 '''
-saturate = lambda value, min_value, max_value: \
-    min(max(value, min_value), max_value)
+
+
+def saturate(value, min_value, max_value):
+    return min(max(value, min_value), max_value)
+
 
 '''
   Paginate the number of question objects
@@ -51,10 +53,13 @@ def paginate(selection, request):
         # client_page is out of bounds
         raise Exception("Sorry, page is out of bounds")
 
-    # pagination: rebase page_num to base 0 for left circular shift
+    # pagination: rebase page_num
+    # to base 0 for left circular shift
     num_shift = (client_page - 1) * QUESTIONS_PER_PAGE
     selection.rotate(-1 * num_shift)
-    questions = [selection[n].format() for n in range(min(num_selection - num_shift, QUESTIONS_PER_PAGE))]
+    questions = [selection[n].format()
+                 for n in range(min(num_selection - num_shift,
+                                    QUESTIONS_PER_PAGE))]
 
     return questions
 
@@ -65,24 +70,26 @@ def create_app(test_config=None):
     db = setup_db(app)
 
     '''
-  @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
+  @TODO: Set up CORS. Allow '*' for origins. 
+  Delete the sample route after completing the TODOs
   '''
     # any origin can access the api uri
     CORS(app,
          resources={r"/api/*": {"origins": "*"}})
 
-
     '''
   @TODO: Use the after_request decorator to set Access-Control-Allow
   '''
+
     # after a request is received run this method
     @app.after_request
     def after_request(response):
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers',
+                             'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods',
+                             'GET, POST, PATCH, DELETE, OPTIONS')
 
         return response
-
 
     '''
   @TODO: 
@@ -92,7 +99,8 @@ def create_app(test_config=None):
 
     @app.route('/categories', methods=['GET'])
     def get_categories():
-        selection_c = Category.query.order_by(Category.id).all()
+        selection_c = Category.query.\
+            order_by(Category.id).all()
 
         categories = {}
         for category in selection_c:
@@ -109,7 +117,8 @@ def create_app(test_config=None):
 
   TEST: At this point, when you start the application
   you should see questions and categories generated,
-  ten questions per page and pagination at the bottom of the screen for three pages.
+  ten questions per page and pagination at the bottom 
+  of the screen for three pages.
   Clicking on the page numbers should update the questions. 
   '''
 
@@ -117,10 +126,12 @@ def create_app(test_config=None):
     def get_questions():
 
         try:
-            selection = Question.query.order_by(Question.id).all()
+            selection = Question.query.\
+                order_by(Question.id).all()
             questions = paginate(selection, request)
 
-            selection_c = Category.query.order_by(Category.id).all()
+            selection_c = Category.query.\
+                order_by(Category.id).all()
             categories = {}
             for category in selection_c:
                 categories[category.id] = category.type
@@ -136,8 +147,10 @@ def create_app(test_config=None):
   @TODO: 
   Create an endpoint to DELETE question using a question ID. 
 
-  TEST: When you click the trash icon next to a question, the question will be removed.
-  This removal will persist in the database and when you refresh the page. 
+  TEST: When you click the trash icon next to
+   a question, the question will be removed.
+  This removal will persist in the database
+   and when you refresh the page. 
   '''
 
     @app.route('/questions/<int:a_id>', methods=['DELETE'])
@@ -150,7 +163,8 @@ def create_app(test_config=None):
             if question is None:
                 abort(404)
             else:
-                Question.query.filter(Question.id == a_id).delete()
+                Question.query.filter(Question.id == a_id).\
+                    delete()
                 db.session.commit()
 
                 return jsonify({'question_id': a_id})
@@ -165,7 +179,8 @@ def create_app(test_config=None):
   category, and difficulty score.
 
   TEST: When you submit a question on the "Add" tab, 
-  the form will clear and the question will appear at the end of the last page
+  the form will clear and the question will appear 
+  at the end of the last page
   of the questions list in the "List" tab.  
   '''
     '''
@@ -194,7 +209,8 @@ def create_app(test_config=None):
             if new_search:
                 selection = Question.query. \
                     order_by(Question.id). \
-                    filter(Question.question.ilike('%{}%'.format(new_search)))
+                    filter(Question.question.
+                           ilike('%{}%'.format(new_search)))
                 questions = paginate(selection.all(), request)
 
                 return jsonify({
@@ -234,7 +250,8 @@ def create_app(test_config=None):
     def get_questions_per_categories(id_value):
 
         try:
-            selection = Question.query.filter_by(category=id_value).all()
+            selection = Question.query.\
+                filter_by(category=id_value).all()
 
             questions = paginate(selection, request)
 
@@ -249,7 +266,8 @@ def create_app(test_config=None):
     '''
   @TODO: 
   Create a POST endpoint to get questions to play the quiz. 
-  This endpoint should take category and previous question parameters 
+  This endpoint should take category and 
+  previous question parameters 
   and return a random questions within the given category, 
   if provided, and that is not one of the previous questions. 
 
@@ -272,16 +290,21 @@ def create_app(test_config=None):
             # {'type': 'Science', 'id': '0'}
 
             if new_type == 'click':
-                selection = Question.query.order_by(Question.id).all()
+                selection = Question.query.\
+                    order_by(Question.id).all()
             else:
-                selection = Question.query.filter_by(category=new_id).all()
+                selection = Question.query.\
+                    filter_by(category=new_id).all()
 
             # removes previous selections from the list
             if type(previous_questions) is str:
-                previous_questions = list(map(int, re.findall(r'\d+', previous_questions)))
+                previous_questions = list(map(int,
+                                              re.findall(r'\d+',
+                                               previous_questions)))
 
             for previous_id in previous_questions:
-                previous_selection = Question.query.get(previous_id)
+                previous_selection = Question.\
+                    query.get(previous_id)
                 selection.remove(previous_selection)
 
             questions = [element.format() for element in selection]
