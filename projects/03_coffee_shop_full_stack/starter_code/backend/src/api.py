@@ -24,10 +24,6 @@ CORS(app)
 ## ROUTES
 
 
-@app.route('/')
-def index():
-    return jsonify({'success': True})
-
 
 '''
 @TODO implement endpoint
